@@ -130,6 +130,7 @@ contract BTNSToken is TokenAdmin {
     public
     isNotBlackListed(_to)
     isNotBlackListed(msg.sender)
+    returns (bool)
     {
         require(_value <= _balances[msg.sender] && _value > 0);
 
@@ -137,6 +138,7 @@ contract BTNSToken is TokenAdmin {
         _balances[_to] = _balances[_to].add(_value);
 
         emit Transfer(msg.sender, _to, _value);
+        return true;
     }
 
     /**
