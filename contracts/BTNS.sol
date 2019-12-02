@@ -24,6 +24,9 @@ contract BTNS {
     mapping(address => uint256) addressInvitation;
     uint256 invitationCode = 9999;
 
+    mapping(address => uint256) public BootUpList; // 开机列表
+    uint public BootUpAmount;   // 开机价
+
     bool hasSetBTNS = false;
     address public BTNSAddress;
     uint public BTNSDecimals;
@@ -38,7 +41,8 @@ contract BTNS {
 
 
     event RegisteredInvitation(address indexed from, uint256 indexed code);
-    event Exchange(address indexed from, uint btnsAmount, uint usdtAmount);
+    event Exchange(address indexed from, uint btnsAmount, uint usdtAmount, uint indexed iCode);
+    event BootUp(address indexed user);
 
     constructor() public{
         admin = msg.sender;
@@ -59,6 +63,8 @@ contract BTNS {
         resonanceLevelAmount = resonanceAmount.div(6);
         resonanceLevelLeftAmount = resonanceAmount.div(6);
         hasSetBTNS = true;
+
+        BootUpAmount = BTNSBase.mul(20);
     }
 
     function registeredInvitation() public{
@@ -75,18 +81,25 @@ contract BTNS {
     function exchangeEstimated(uint amount) external returns(uint) {
         require(amount < resonanceAmountLeft);
         return getTotalPrice(amount, 0);
-
     }
 
-    function exchange(uint amount) public{
+    function exchange(uint amount, uint iCode) public{
         require(amount < resonanceAmountLeft);
         uint usdtAmount = getTotalPrice(amount, 0);
         require(usdt.transferFrom(msg.sender, address(this), usdtAmount));
-        btns.transfer(msg.sender, amount);
-        emit Exchange(msg.sender, amount, usdtAmount);
+        require(btns.transfer(msg.sender, amount));
+        emit Exchange(msg.sender, amount, usdtAmount, iCode);
     }
 
     function eth() public payable{
+    }
+
+    // 开机
+    function bootUp() public {
+        require(BootUpList[msg.sender] == uint256(0));
+        require(btns.transferFrom(msg.sender, address(this), BootUpAmount));
+        BootUpList[msg.sender] = BootUpAmount;
+        emit BootUp(msg.sender);
     }
 
     function getTotalPrice(uint amount, uint level) internal returns(uint){
