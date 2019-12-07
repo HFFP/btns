@@ -24,8 +24,11 @@ contract BTNS {
     mapping(address => uint256) addressInvitation;
     uint256 invitationCode = 9999;
 
-    mapping(address => uint256) public BootUpList; // 开机列表
-    uint public BootUpAmount;   // 开机价
+    mapping(address => uint256) public bootUpList; // 开机列表
+    uint public bootUpAmount;   // 开机价
+
+    mapping(address => uint256) public millList; // 用户挖矿列表
+    mapping(uint256 => bool) public millTypeList; // 矿机类型列表
 
     bool hasSetBTNS = false;
     address public BTNSAddress;
@@ -37,15 +40,23 @@ contract BTNS {
     uint public resonancePrice;             // 共振当前价格
     uint public resonanceLevelLeftAmount;   // 共振当前等级剩余数量
     uint public resonanceLevelAmount;       // 共振每层数量
-    uint public resonancePriceStep = 50000;// 共振价格步长
+    uint public resonancePriceStep = 50000; // 共振价格步长
 
+    address receiveUsdtAddress = 0xCA35b7d915458EF540aDe6068dFe2F44E8fa733c;
 
     event RegisteredInvitation(address indexed from, uint256 indexed code);
     event Exchange(address indexed from, uint btnsAmount, uint usdtAmount, uint indexed iCode);
     event BootUp(address indexed user);
+    event Mining(address indexed user, uint256 millType, uint256 time);
+    event UpdateMining(address indexed user, uint256 millType, uint256 time);
+    event StopMining(address indexed user);
 
     constructor() public{
         admin = msg.sender;
+        millTypeList[1000] = true;
+        millTypeList[5000] = true;
+        millTypeList[10000] = true;
+        millTypeList[50000] = true;
     }
 
     function setBTNS(address btnsAddress) public{
@@ -64,16 +75,18 @@ contract BTNS {
         resonanceLevelLeftAmount = resonanceAmount.div(6);
         hasSetBTNS = true;
 
-        BootUpAmount = BTNSBase.mul(20);
+        bootUpAmount = BTNSBase.mul(20);
     }
 
+    // 注册验证码
     function registeredInvitation() public{
-        require(addressInvitation[msg.sender] == uint256(0));
+        require(addressInvitation[msg.sender] == uint256(0), "registered");
         invitationCode += 1;
         addressInvitation[msg.sender] = invitationCode;
         emit RegisteredInvitation(msg.sender, invitationCode);
     }
 
+    // 获得验证码
     function getInvitationCode() public view returns(uint256){
         return addressInvitation[msg.sender];
     }
@@ -83,11 +96,12 @@ contract BTNS {
         return getTotalPrice(amount, 0);
     }
 
+    //兑换
     function exchange(uint amount, uint iCode) public{
-        require(amount < resonanceAmountLeft);
+        require(amount < resonanceAmountLeft, "resonance amount left < amount");
         uint usdtAmount = getTotalPrice(amount, 0);
-        require(usdt.transferFrom(msg.sender, address(this), usdtAmount));
-        require(btns.transfer(msg.sender, amount));
+        require(usdt.transferFrom(msg.sender, receiveUsdtAddress, usdtAmount), "transfer usdt fail");
+        require(btns.transfer(msg.sender, amount), "transfer btns fail");
         emit Exchange(msg.sender, amount, usdtAmount, iCode);
     }
 
@@ -96,10 +110,53 @@ contract BTNS {
 
     // 开机
     function bootUp() public {
-        require(BootUpList[msg.sender] == uint256(0));
-        require(btns.transferFrom(msg.sender, address(this), BootUpAmount));
-        BootUpList[msg.sender] = BootUpAmount;
+        require(bootUpList[msg.sender] == uint256(0), "has been bootUp");
+        require(btns.transferFrom(msg.sender, address(this), bootUpAmount), "transfer btns fail");
+        bootUpList[msg.sender] = bootUpAmount;
         emit BootUp(msg.sender);
+    }
+
+    // 挖矿
+    function mining(uint millType) public {
+        require(bootUpList[msg.sender] != uint256(0), "not bootUp");
+        require(millTypeList[millType], "millType error");
+        require(millList[msg.sender] == uint256(0), "is mining");
+        require(btns.transferFrom(msg.sender, address(this), millType.mul(BTNSBase)), "transfer btns fail");
+        millList[msg.sender] = millType;
+        emit Mining(msg.sender, millType, block.timestamp);
+    }
+
+    // 升级矿机
+    function updateMill(uint millType) public {
+        require(millTypeList[millType], "millType error");
+        require(millList[msg.sender] != uint256(0) && millType > millList[msg.sender], "not mining or millType need bigger than before ");
+        uint256 temp = millType - millList[msg.sender];
+        require(btns.transferFrom(msg.sender, address(this), temp.mul(BTNSBase)), "transfer btns fail");
+        millList[msg.sender] = millType;
+        emit UpdateMining(msg.sender, millType, block.timestamp);
+    }
+
+    // 关机
+    function stopMining() public {
+        require(millList[msg.sender] != uint256(0), "not mining");
+        require(btns.transferFrom(address(this), msg.sender, millList[msg.sender].mul(BTNSBase)), "transfer btns fail");
+        delete millList[msg.sender];
+        emit StopMining(msg.sender);
+    }
+
+    // 分发社区奖
+    function sendCommunityAward() public {
+
+    }
+
+    // 分发开机奖
+    function sendBootUpAward() public {
+
+    }
+
+    // 分发挖矿产出
+    function sendMiningAward() public {
+
     }
 
     function getTotalPrice(uint amount, uint level) internal returns(uint){
