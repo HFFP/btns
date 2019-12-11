@@ -102,6 +102,16 @@ contract BTNS {
         uint usdtAmount = getTotalPrice(amount, 0);
         require(usdt.transferFrom(msg.sender, receiveUsdtAddress, usdtAmount), "transfer usdt fail");
         require(btns.transfer(msg.sender, amount), "transfer btns fail");
+        uint updateLevel = getLevelInfo(amount);
+        if (updateLevel = 0) {
+            resonanceLevelLeftAmount = resonanceLevelLeftAmount - amount;
+        } else {
+            resonanceLevelLeftAmount = resonanceLevelAmount - resonanceLevelLeftAmount;
+            resonanceLevel = resonanceLevel + updateLevel;
+            resonancePrice = resonancePrice + updateLevel * resonancePriceStep;
+        }
+
+        resonanceAmountLeft = resonanceAmountLeft - amount;
         emit Exchange(msg.sender, amount, usdtAmount, iCode);
     }
 
@@ -162,9 +172,17 @@ contract BTNS {
     function getTotalPrice(uint amount, uint level) internal returns(uint){
         if (amount > resonanceLevelAmount) {
             uint tmpPrice = level.mul(resonancePriceStep).add(resonancePrice);
-            return resonanceLevelAmount.mul(resonancePrice.add(tmpPrice)).div(BTNSBase).add(getTotalPrice(resonanceLevelAmount.sub(amount), level + 1)) ;
+            return resonanceLevelAmount.mul(resonancePrice.add(tmpPrice)).div(BTNSBase).add(getTotalPrice(amount.sub(resonanceLevelAmount), level + 1)) ;
         } else {
             return amount.mul(resonancePrice).div(BTNSBase);
+        }
+    }
+
+    function getLevelInfo(uint amount) internal returns(uint){
+        if (amount > resonanceLevelAmount) {
+            return 1 + getLevelInfo(amount.sub(resonanceLevelAmount)) ;
+        } else {
+            return 0;
         }
     }
 }
