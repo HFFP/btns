@@ -99,6 +99,7 @@ contract BTNS {
     //兑换
     function exchange(uint amount, uint iCode) public{
         require(amount <= resonanceAmountLeft, "resonance amount left < amount");
+        require(addressInvitation[msg.sender] != iCode, "can't invite self");
         uint usdtAmount = getTotalPrice(amount, 0);
         require(usdt.transferFrom(msg.sender, receiveUsdtAddress, usdtAmount), "transfer usdt fail");
         require(btns.transfer(msg.sender, amount), "transfer btns fail");
@@ -152,7 +153,7 @@ contract BTNS {
     }
 
     // 分发开机奖
-    function sendBootUpAward() public {
+    function sendBootUpAward(mapping(address=>uint) immediate, mapping(address=>uint) ) public {
 
     }
 
