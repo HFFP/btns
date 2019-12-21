@@ -28,7 +28,8 @@ contract BTNS {
     uint public bootUpAmount;   // 开机价
 
     mapping(address => uint256) public millList; // 用户挖矿列表
-    mapping(uint256 => bool) public millTypeList; // 矿机类型列表
+    mapping(address => uint256) public millTimeList; // 用户挖矿对应时间列表
+    mapping(uint256 => uint256) public millTypeList; // 矿机类型列表 对应算力
 
     bool hasSetBTNS = false;
     address public BTNSAddress;
@@ -53,10 +54,10 @@ contract BTNS {
 
     constructor() public{
         admin = msg.sender;
-        millTypeList[1000] = true;
-        millTypeList[5000] = true;
-        millTypeList[10000] = true;
-        millTypeList[50000] = true;
+        millTypeList[1000] = 10;
+        millTypeList[5000] = 60;
+        millTypeList[10000] = 130;
+        millTypeList[50000] = 700;
     }
 
     function setBTNS(address btnsAddress) public{
@@ -122,30 +123,32 @@ contract BTNS {
     // 挖矿
     function mining(uint millType) public {
         require(bootUpList[msg.sender] != uint256(0), "not bootUp");
-        require(millTypeList[millType], "millType error");
+        require(millTypeList[millType] != uint256(0), "millType error");
         require(millList[msg.sender] == uint256(0), "is mining");
         require(btns.transferFrom(msg.sender, address(this), millType.mul(BTNSBase)), "transfer btns fail");
         millList[msg.sender] = millType;
+        millTimeList[msg.sender] = block.timestamp;
         emit Mining(msg.sender, millType, block.timestamp);
     }
 
     // 升级矿机
     function updateMill(uint millType) public {
-        require(millTypeList[millType], "millType error");
+        require(millTypeList[millType] != uint256(0), "millType error");
         require(millList[msg.sender] != uint256(0) && millType > millList[msg.sender], "not mining or millType need bigger than before ");
         uint256 temp = millType - millList[msg.sender];
         require(btns.transferFrom(msg.sender, address(this), temp.mul(BTNSBase)), "transfer btns fail");
         millList[msg.sender] = millType;
+        millTimeList[msg.sender] = block.timestamp;
         emit UpdateMining(msg.sender, millType, block.timestamp);
     }
 
-    // 关机
-    function stopMining() public {
-        require(millList[msg.sender] != uint256(0), "not mining");
-        require(btns.transferFrom(address(this), msg.sender, millList[msg.sender].mul(BTNSBase)), "transfer btns fail");
-        delete millList[msg.sender];
-        emit StopMining(msg.sender);
-    }
+//    // 关机
+//    function stopMining() public {
+//        require(millList[msg.sender] != uint256(0), "not mining");
+//        require(btns.transferFrom(address(this), msg.sender, millList[msg.sender].mul(BTNSBase)), "transfer btns fail");
+//        delete millList[msg.sender];
+//        emit StopMining(msg.sender);
+//    }
 
     // 分发社区奖
     function sendCommunityAward() public {
@@ -153,7 +156,7 @@ contract BTNS {
     }
 
     // 分发开机奖
-    function sendBootUpAward(mapping(address=>uint) immediate, mapping(address=>uint) ) public {
+    function sendBootUpAward() public {
 
     }
 
