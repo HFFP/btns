@@ -30,8 +30,8 @@ contract BTNS {
     mapping(address => uint256) public millList; // 用户挖矿列表
     mapping(address => uint256) public millTimeList; // 用户挖矿对应时间列表
     mapping(uint256 => uint256) public millTypeList; // 矿机类型列表 对应算力
-    mapping(address => bool) public CommunityAwardLevel1List;
-    mapping(address => bool) public CommunityAwardLevel2List;
+    mapping(address => bool) public CommunityAwardLevel1List; // 社区奖1 领取人
+    mapping(address => bool) public CommunityAwardLevel2List; // 社区奖2 领取人
 
     bool hasSetBTNS = false;
     address public BTNSAddress;
@@ -49,6 +49,8 @@ contract BTNS {
     uint public communityAwardLevel2Num = 0; // 社区奖等级2已发放人数
     uint public communityAwardLevel1;        // 社区奖等级1 奖励数量
     uint public communityAwardLevel2;        // 社区奖等级2 奖励数量
+
+    uint public totalPower; // 总算力
 
     address receiveUsdtAddress = 0xCA35b7d915458EF540aDe6068dFe2F44E8fa733c;
 
@@ -139,6 +141,7 @@ contract BTNS {
         require(btns.transferFrom(msg.sender, address(this), millType.mul(BTNSBase)), "transfer btns fail");
         millList[msg.sender] = millType;
         millTimeList[msg.sender] = block.timestamp;
+        totalPower += millTypeList[millType];
         emit Mining(msg.sender, millType, block.timestamp);
     }
 
@@ -148,6 +151,10 @@ contract BTNS {
         require(millList[msg.sender] != uint256(0) && millType > millList[msg.sender], "not mining or millType need bigger than before ");
         uint256 temp = millType - millList[msg.sender];
         require(btns.transferFrom(msg.sender, address(this), temp.mul(BTNSBase)), "transfer btns fail");
+
+        totalPower += millTypeList[millType];
+        totalPower -= millTypeList[millList[msg.sender]];
+
         millList[msg.sender] = millType;
         millTimeList[msg.sender] = block.timestamp;
         emit UpdateMining(msg.sender, millType, block.timestamp);
