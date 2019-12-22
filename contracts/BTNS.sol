@@ -50,6 +50,8 @@ contract BTNS {
     uint public communityAwardLevel1;        // 社区奖等级1 奖励数量
     uint public communityAwardLevel2;        // 社区奖等级2 奖励数量
 
+    uint public coinBase; // 算力产出比 0.8
+
     uint public totalPower; // 总算力
 
     address receiveUsdtAddress = 0xCA35b7d915458EF540aDe6068dFe2F44E8fa733c;
@@ -62,6 +64,7 @@ contract BTNS {
     event StopMining(address indexed user);
     event BootUpAward(address indexed user, uint256 awardAmount);
     event CommunityAward(address user, uint amount);
+    event CoinBase(address user, uint amount);
 
     constructor() public{
         admin = msg.sender;
@@ -90,6 +93,8 @@ contract BTNS {
         bootUpAmount = BTNSBase.mul(20);
         communityAwardLevel1 = BTNSBase.mul(5255);
         communityAwardLevel2 = BTNSBase.mul(50000);
+
+        coinBase = BTNSBase.mul(8).div(10);
     }
 
     // 注册验证码
@@ -220,8 +225,14 @@ contract BTNS {
     }
 
     // 分发挖矿产出
-    function sendMiningAward() public {
-
+    function sendMiningAward(address[] memory users, uint[] memory powers) public {
+        require(msg.sender == admin);
+        for (uint256 i=0; i<users.length; i++) {
+            require(millList[users[i]] != uint256(0), "user not mining");
+            uint amount = powers[i].mul(coinBase);
+            require(btns.transfer(address(users[i]), amount), "transfer btns fail");
+            emit CoinBase(users[i], amount);
+        }
     }
 
     function getTotalPrice(uint amount, uint level) internal returns(uint){
