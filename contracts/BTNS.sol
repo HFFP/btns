@@ -30,6 +30,8 @@ contract BTNS {
     mapping(address => uint256) public millList; // 用户挖矿列表
     mapping(address => uint256) public millTimeList; // 用户挖矿对应时间列表
     mapping(uint256 => uint256) public millTypeList; // 矿机类型列表 对应算力
+    mapping(address => bool) public CommunityAwardLevel1List;
+    mapping(address => bool) public CommunityAwardLevel2List;
 
     bool hasSetBTNS = false;
     address public BTNSAddress;
@@ -43,6 +45,11 @@ contract BTNS {
     uint public resonanceLevelAmount;       // 共振每层数量
     uint public resonancePriceStep = 50000; // 共振价格步长
 
+    uint public communityAwardLevel1Num = 0; // 社区奖等级1已发放人数
+    uint public communityAwardLevel2Num = 0; // 社区奖等级2已发放人数
+    uint public communityAwardLevel1;        // 社区奖等级1 奖励数量
+    uint public communityAwardLevel2;        // 社区奖等级2 奖励数量
+
     address receiveUsdtAddress = 0xCA35b7d915458EF540aDe6068dFe2F44E8fa733c;
 
     event RegisteredInvitation(address indexed from, uint256 indexed code);
@@ -51,6 +58,8 @@ contract BTNS {
     event Mining(address indexed user, uint256 millType, uint256 time);
     event UpdateMining(address indexed user, uint256 millType, uint256 time);
     event StopMining(address indexed user);
+    event BootUpAward(address indexed user, uint256 awardAmount);
+    event CommunityAward(address user, uint amount);
 
     constructor() public{
         admin = msg.sender;
@@ -77,6 +86,8 @@ contract BTNS {
         hasSetBTNS = true;
 
         bootUpAmount = BTNSBase.mul(20);
+        communityAwardLevel1 = BTNSBase.mul(5255);
+        communityAwardLevel2 = BTNSBase.mul(50000);
     }
 
     // 注册验证码
@@ -151,13 +162,54 @@ contract BTNS {
 //    }
 
     // 分发社区奖
-    function sendCommunityAward() public {
-
+    function sendCommunityAward(address user, uint level) public {
+        require(msg.sender == admin);
+        require(level == 1 || level == 2,  "CommunityAward level error");
+        if (level == 1) {
+            require(communityAwardLevel1Num < 999, "communityAwardLevel1 limit 999");
+            require(CommunityAwardLevel1List[user] == false, "has been sendCommunityAward");
+            require(btns.transfer(address(user), communityAwardLevel1), "transfer btns fail");
+            CommunityAwardLevel1List[user] = true;
+            communityAwardLevel1Num += 1;
+            emit CommunityAward(user, communityAwardLevel1);
+        } else if (level == 2) {
+            require(communityAwardLevel2Num < 99, "communityAwardLevel2 limit 99");
+            require(CommunityAwardLevel2List[user] == false, "has been sendCommunityAward");
+            require(btns.transfer(address(user), communityAwardLevel2), "transfer btns fail");
+            CommunityAwardLevel2List[user] = true;
+            communityAwardLevel2Num += 1;
+            emit CommunityAward(user, communityAwardLevel2);
+        }
     }
 
     // 分发开机奖
-    function sendBootUpAward() public {
-
+    function sendBootUpAward(address[] memory immediate, address[] memory distant) public {
+        require(msg.sender == admin);
+        uint immediateLength = immediate.length;
+        uint distantLength = distant.length;
+        uint destroy = 0;
+        uint amount = BTNSBase.mul(10);
+        if (immediateLength == 0) {
+            destroy += amount;
+        } else {
+            uint immediateAmount = amount.div(immediateLength);
+            for(uint256 i=0; i<immediateLength; i++) {
+                require(btns.transfer(address(immediate[i]), immediateAmount), "transfer btns fail");
+                emit BootUpAward(immediate[i], immediateAmount);
+            }
+        }
+        if (distantLength == 0) {
+            destroy += amount;
+        } else {
+            uint distantAmount = amount.div(distantLength);
+            for(uint256 i=0; i<distantLength; i++) {
+                require(btns.transfer(address(distant[i]), distantAmount), "transfer btns fail");
+                emit BootUpAward(distant[i], distantAmount);
+            }
+        }
+        if (destroy != 0) {
+            require(btns.transfer(address(0), destroy), "transfer btns fail");
+        }
     }
 
     // 分发挖矿产出
